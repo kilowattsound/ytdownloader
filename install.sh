@@ -25,7 +25,7 @@ echo -e "${GREEN}[✔] Python 3 detected${NC}"
 # 2. Identify script location
 SCRIPT_NAME="ytdownloader.py"
 INSTALL_DIR="$HOME/.ytdl/bin"
-REPO_URL="https://raw.githubusercontent.com/kilowattsound/ytdown/main"
+REPO_URL="https://raw.githubusercontent.com/kilowattsound/ytdownloader/main"
 
 # Check for curl (needed for standalone mode)
 if ! command -v curl &> /dev/null

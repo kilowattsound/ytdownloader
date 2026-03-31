@@ -25,15 +25,15 @@ A high-performance, aesthetically pleasing terminal-based YouTube downloader bui
 ### One-line Installation (Recommended)
 Run this command in your terminal to automatically install the script to your system:
 ```bash
-curl -sSL https://raw.githubusercontent.com/kilowattsound/ytdown/main/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/kilowattsound/ytdownloader/main/install.sh | bash
 ```
 
 ### Manual Installation (GitHub Clone)
 To install the downloader onto your system globally, simply clone the repository and run the installer:
 
 ```bash
-git clone https://github.com/kilowattsound/ytdown.git
-cd ytdown
+git clone https://github.com/kilowattsound/ytdownloader.git
+cd ytdownloader
 chmod +x install.sh
 ./install.sh
 ```
@@ -51,8 +51,8 @@ If you prefer to run it without installing globally:
 
 1.  Clone the repository:
     ```bash
-    git clone https://github.com/kilowattsound/ytdown.git
-    cd ytdown
+    git clone https://github.com/kilowattsound/ytdownloader.git
+    cd ytdownloader
     ```
 2.  Install dependencies:
     ```bash
