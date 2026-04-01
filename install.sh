@@ -101,7 +101,7 @@ echo -e "You can now run the downloader from any terminal by typing: ${BOLD}yout
 
 # 5. Check for stale binaries in other PATH locations
 STALE_FOUND=false
-while IFS= read -r yt_path; do
+for yt_path in $(which -a youtube 2>/dev/null); do
     if [ "$yt_path" != "$DEST_PATH" ]; then
         echo -e "${YELLOW}[!] Warning: Found a stale 'youtube' binary at: $yt_path${NC}"
         echo -e "${YELLOW}    This may override the new installation. Removing...${NC}"
@@ -112,7 +112,7 @@ while IFS= read -r yt_path; do
         fi
         STALE_FOUND=true
     fi
-done < <(which -a youtube 2>/dev/null)
+done
 
 if [ "$STALE_FOUND" = true ]; then
     echo -e "${GREEN}[✔] Stale binaries cleaned up.${NC}"
