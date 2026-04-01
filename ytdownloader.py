@@ -790,7 +790,10 @@ class TerminalYouTubeDownloader:
                     elif h == 1080: name = "1080p FHD"
                     elif h == 720: name = "720p HD"
                     
-                    qualities.append((f"▶ {name} - [dim]{bitrate_str}[/dim]", str(h)))
+                    if RICH_AVAILABLE:
+                        qualities.append((f"▶ {name} - [dim]{bitrate_str}[/dim]", str(h)))
+                    else:
+                        qualities.append((f"▶ {name} - {bitrate_str}", str(h)))
             else:
                 # Fallback to hardcoded list if fetching failed
                 qualities = [
@@ -805,7 +808,10 @@ class TerminalYouTubeDownloader:
             
             self.print_color(f"\n{self._t('select_quality')}:", "cyan")
             for i, (name, _) in enumerate(qualities, 1):
-                print(f"  {i}. {name}")
+                if RICH_AVAILABLE:
+                    self.console.print(f"  {i}. {name}")
+                else:
+                    print(f"  {i}. {name}")
             
             if RICH_AVAILABLE:
                 try:
