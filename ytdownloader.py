@@ -16,6 +16,7 @@ import threading
 import queue
 import shutil
 import urllib.request
+import ssl
 
 VERSION = "2.2"
 REPO_URL = "kilowattsound/ytdownloader"
@@ -1218,7 +1219,9 @@ class TerminalYouTubeDownloader:
         
         try:
             url = f"https://raw.githubusercontent.com/{REPO_URL}/main/ytdownloader.py"
-            with urllib.request.urlopen(url, timeout=10) as response:
+            # Use an unverified context by default to resolve macOS certificate issues
+            context = ssl._create_unverified_context()
+            with urllib.request.urlopen(url, timeout=10, context=context) as response:
                 content = response.read().decode('utf-8')
                 
             # Find version using regex
