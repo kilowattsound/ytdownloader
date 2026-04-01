@@ -15,6 +15,10 @@ import re
 import threading
 import queue
 import shutil
+import urllib.request
+
+VERSION = "2.2"
+REPO_URL = "kilowattsound/ytdownloader"
 
 def ensure_dependencies():
     """Ensure required Python modules are installed"""
@@ -85,7 +89,7 @@ RICH_AVAILABLE = True
 TRANSLATIONS = {
     'en': {
         'title': 'YouTube Downloader',
-        'subtitle': 'Terminal Edition v2.1',
+        'subtitle': f'Terminal Edition v{VERSION}',
         'main_menu': 'Main Menu',
         'download_video': 'Download Video',
         'download_audio': 'Download Audio Only',
@@ -113,6 +117,7 @@ TRANSLATIONS = {
         'download_path': 'Download Path',
         'change_path': 'Change download location',
         'check_updates': 'Check for library updates',
+        'check_github': 'Check for app updates (GitHub)',
         'change_lang': 'Change Language',
         'install_system': 'Install to System (Global Alias)',
         'install_success': 'Successfully installed! You can now run "youtube" from any terminal.',
@@ -128,18 +133,13 @@ TRANSLATIONS = {
         'downloading': 'Downloading...',
         'preparing': 'Preparing...',
         'finished': 'Finished',
-        'checking_updates': 'Checking for updates...',
-        'up_to_date': 'All libraries are up to date!',
-        'updates_available': 'Updates Available',
-        'install_updates_prompt': 'Would you like to install these updates now?',
-        'updating_libs': 'Updating libraries... please wait.',
-        'updates_installed': 'Updates installed successfully!',
-        'restarting': 'Restarting script to apply changes...',
-        'select_audio_format': 'Select Audio Format:',
-        'download_cancelled': 'Download cancelled.',
-        'select_language': 'Select Language',
-        'about_text': """
-Version: 2.1 (Pure Python Edition)
+        'app_up_to_date': 'YouTube Downloader is up to date!',
+        'app_update_available': 'New version available: v{}',
+        'update_app_prompt': 'Would you like to update the application now?',
+        'updating_app': 'Updating script... please wait.',
+        'app_updated': 'Application updated successfully!',
+        'about_text': f"""
+Version: {VERSION} (Pure Python Edition)
 Author: Terminal Edition
 Powered by: yt_dlp library and ffmpeg
 
@@ -170,7 +170,7 @@ Powered by: yt_dlp library and ffmpeg
     },
     'ru': {
         'title': 'YouTube Загрузчик',
-        'subtitle': 'Терминальная версия v2.1',
+        'subtitle': f'Терминальная версия v{VERSION}',
         'main_menu': 'Главное меню',
         'download_video': 'Скачать видео',
         'download_audio': 'Скачать только аудио',
@@ -198,6 +198,7 @@ Powered by: yt_dlp library and ffmpeg
         'download_path': 'Путь загрузки',
         'change_path': 'Изменить путь сохранения',
         'check_updates': 'Проверить обновления библиотек',
+        'check_github': 'Проверить обновления приложения (GitHub)',
         'change_lang': 'Сменить язык',
         'install_system': 'Установить в систему (Глобальный псевдоним)',
         'install_success': 'Успешно установлено! Теперь вы можете запускать "youtube" из любого терминала.',
@@ -213,18 +214,13 @@ Powered by: yt_dlp library and ffmpeg
         'downloading': 'Загрузка...',
         'preparing': 'Подготовка...',
         'finished': 'Завершено',
-        'checking_updates': 'Проверка обновлений...',
-        'up_to_date': 'Все библиотеки обновлены!',
-        'updates_available': 'Доступны обновления',
-        'install_updates_prompt': 'Хотите установить обновления сейчас?',
-        'updating_libs': 'Обновление библиотек... пожалуйста, подождите.',
-        'updates_installed': 'Обновления успешно установлены!',
-        'restarting': 'Перезапуск скрипта для применения изменений...',
-        'select_audio_format': 'Выберите аудиоформат:',
-        'download_cancelled': 'Загрузка отменена.',
-        'select_language': 'Выберите язык',
-        'about_text': """
-Версия: 2.1 (Pure Python Edition)
+        'app_up_to_date': 'YouTube Downloader обновлен!',
+        'app_update_available': 'Доступна новая версия: v{}',
+        'update_app_prompt': 'Хотите обновить приложение сейчас?',
+        'updating_app': 'Обновление скрипта... пожалуйста, подождите.',
+        'app_updated': 'Приложение успешно обновлено!',
+        'about_text': f"""
+Версия: {VERSION} (Pure Python Edition)
 Автор: Terminal Edition
 Работает на: библиотеке yt_dlp и ffmpeg
 
@@ -1030,14 +1026,15 @@ class TerminalYouTubeDownloader:
             self.print_color(f"\n{self._t('main_menu')}:", "yellow")
             print(f"  1. {self._t('change_path')}")
             print(f"  2. {self._t('check_updates')}")
-            print(f"  3. {self._t('change_lang')}")
-            print(f"  4. {self._t('install_system')}")
-            print(f"  5. {self._t('back_to_menu')}")
+            print(f"  3. {self._t('check_github')}")
+            print(f"  4. {self._t('change_lang')}")
+            print(f"  5. {self._t('install_system')}")
+            print(f"  6. {self._t('back_to_menu')}")
             
             try:
-                choice = IntPrompt.ask(f"\n{self._t('select_option')}", default=5)
+                choice = IntPrompt.ask(f"\n{self._t('select_option')}", default=6)
             except:
-                choice = 5
+                choice = 6
         else:
             print(f"\n{self._t('download_path')}: {self.download_path}")
             print(f"yt-dlp: ✔ Version {self.ytdlp_version}")
@@ -1046,13 +1043,14 @@ class TerminalYouTubeDownloader:
             print(f"\n{self._t('main_menu')}:")
             print(f"  1. {self._t('change_path')}")
             print(f"  2. {self._t('check_updates')}")
-            print(f"  3. {self._t('change_lang')}")
-            print(f"  4. {self._t('install_system')}")
-            print(f"  5. {self._t('back_to_menu')}")
+            print(f"  3. {self._t('check_github')}")
+            print(f"  4. {self._t('change_lang')}")
+            print(f"  5. {self._t('install_system')}")
+            print(f"  6. {self._t('back_to_menu')}")
             try:
-                choice = int(input(f"\n{self._t('select_option')} (1-5) [5]: ") or "5")
+                choice = int(input(f"\n{self._t('select_option')} (1-6) [6]: ") or "6")
             except:
-                choice = 5
+                choice = 6
         
         if choice == 1:
             self.print_color(f"\nCurrent path: {self.download_path}", "cyan")
@@ -1080,6 +1078,8 @@ class TerminalYouTubeDownloader:
         elif choice == 2:
             self.check_for_updates()
         elif choice == 3:
+            self.check_github_updates()
+        elif choice == 4:
             self.print_color(f"\n{self._t('select_language')} / Выберите язык:", "cyan")
             print("  1. English")
             print("  2. Русский")
@@ -1099,9 +1099,9 @@ class TerminalYouTubeDownloader:
             self.save_config()
             self.print_color(f"✔ {self._t('lang_name')}!", "green")
             time.sleep(1.5)
-        elif choice == 4:
-            self.install_to_system()
         elif choice == 5:
+            self.install_to_system()
+        elif choice == 6:
             return
 
     def install_to_system(self):
@@ -1208,6 +1208,61 @@ class TerminalYouTubeDownloader:
             os.execv(sys.executable, ['python3'] + sys.argv)
         except Exception as e:
             self.print_color(f"\n✖ Error applying updates: {e}", "red")
+            input(f"\n{self._t('press_enter')}")
+
+    def check_github_updates(self):
+        """Check for updates of the script itself from GitHub"""
+        self.clear_screen()
+        self.show_header()
+        self.print_color(f"★ {self._t('checking_updates')}...", "yellow")
+        
+        try:
+            url = f"https://raw.githubusercontent.com/{REPO_URL}/main/ytdownloader.py"
+            with urllib.request.urlopen(url, timeout=10) as response:
+                content = response.read().decode('utf-8')
+                
+            # Find version using regex
+            version_match = re.search(r'^VERSION\s*=\s*["\']([^"\']+)["\']', content, re.MULTILINE)
+            
+            if version_match:
+                remote_version = version_match.group(1)
+                
+                if remote_version != VERSION:
+                    self.print_color(f"\n[!] {self._t('app_update_available').format(remote_version)}", "yellow", bold=True)
+                    
+                    confirm = False
+                    if RICH_AVAILABLE:
+                        confirm = Confirm.ask(f"\n{self._t('update_app_prompt')}", default=True)
+                    else:
+                        confirm = (input(f"\n{self._t('update_app_prompt')} (y/n) [y]: ").lower() or 'y') == 'y'
+                        
+                    if confirm:
+                        self.apply_app_update(content)
+                else:
+                    self.print_color(f"\n✔ {self._t('app_up_to_date')}", "green")
+                    time.sleep(2)
+            else:
+                self.print_color("\n✖ Could not parse remote version information.", "red")
+                time.sleep(2)
+                
+        except Exception as e:
+            self.print_color(f"\n✖ Error checking GitHub: {e}", "red")
+            time.sleep(3)
+
+    def apply_app_update(self, content):
+        """Apply the update by overwriting the current script"""
+        self.print_color(f"\n[>] {self._t('updating_app')}", "cyan")
+        try:
+            script_path = os.path.abspath(__file__)
+            with open(script_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+                
+            self.print_color(f"\n✔ {self._t('app_updated')}", "green")
+            self.print_color(self._t('restarting'), "yellow")
+            time.sleep(2)
+            os.execv(sys.executable, ['python3'] + sys.argv)
+        except Exception as e:
+            self.print_color(f"\n✖ Error applying update: {e}", "red")
             input(f"\n{self._t('press_enter')}")
     
     def show_about(self):
