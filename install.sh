@@ -119,3 +119,48 @@ if [ "$STALE_FOUND" = true ]; then
 fi
 
 echo -e "\n${BLUE}Happy downloading!${NC}"
+        rm "$DEST_PATH"
+    fi
+fi
+
+# Create symlink
+if [ "$EUID" -ne 0 ]; then
+    if ! ln -s "$SCRIPT_PATH" "$DEST_PATH" 2>/dev/null; then
+        echo -e "${BLUE}[#] Requesting administrator permission to install to system...${NC}"
+        if sudo ln -sf "$SCRIPT_PATH" "$DEST_PATH"; then
+            echo -e "${GREEN}[✔] Successfully installed globally using sudo!${NC}"
+        else
+            echo -e "${RED}[✖] Error during installation. Please check permissions.${NC}"
+            exit 1
+        fi
+    else
+        echo -e "${GREEN}[✔] Successfully installed globally!${NC}"
+    fi
+else
+    ln -sf "$SCRIPT_PATH" "$DEST_PATH"
+    echo -e "${GREEN}[✔] Successfully installed globally!${NC}"
+fi
+
+echo -e "\n${GREEN}${BOLD}Done!${NC}"
+echo -e "You can now run the downloader from any terminal by typing: ${BOLD}youtube${NC}"
+
+# 5. Check for stale binaries in other PATH locations
+STALE_FOUND=false
+while IFS= read -r yt_path; do
+    if [ "$yt_path" != "$DEST_PATH" ]; then
+        echo -e "${YELLOW}[!] Warning: Found a stale 'youtube' binary at: $yt_path${NC}"
+        echo -e "${YELLOW}    This may override the new installation. Removing...${NC}"
+        if rm "$yt_path" 2>/dev/null || sudo rm "$yt_path" 2>/dev/null; then
+            echo -e "${GREEN}[✔] Removed stale binary: $yt_path${NC}"
+        else
+            echo -e "${RED}[✖] Could not remove $yt_path. Please remove it manually.${NC}"
+        fi
+        STALE_FOUND=true
+    fi
+done < <(which -a youtube 2>/dev/null)
+
+if [ "$STALE_FOUND" = true ]; then
+    echo -e "${GREEN}[✔] Stale binaries cleaned up.${NC}"
+fi
+
+echo -e "\n${BLUE}Happy downloading!${NC}"
