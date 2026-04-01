@@ -150,6 +150,11 @@ TRANSLATIONS = {
         'restarting': 'Restarting application...',
         'select_language': 'Select Language',
         'settings_options': 'Options',
+        'uninstall_system': 'Uninstall from System',
+        'uninstall_confirm': 'Are you sure you want to uninstall YouTube Downloader?',
+        'uninstall_success': 'YouTube Downloader has been uninstalled from your system.',
+        'uninstall_data_prompt': 'Also delete configuration and download history?',
+        'uninstall_not_installed': 'YouTube Downloader is not installed on this system.',
         'about_text': f"""
 Version: {VERSION} (Pure Python Edition)
 Author: Terminal Edition
@@ -242,6 +247,11 @@ Powered by: yt_dlp library and ffmpeg
         'restarting': 'Перезапуск приложения...',
         'select_language': 'Выберите язык',
         'settings_options': 'Опции',
+        'uninstall_system': 'Удалить из системы',
+        'uninstall_confirm': 'Вы уверены, что хотите удалить YouTube Downloader?',
+        'uninstall_success': 'YouTube Downloader удалён из вашей системы.',
+        'uninstall_data_prompt': 'Также удалить конфигурацию и историю загрузок?',
+        'uninstall_not_installed': 'YouTube Downloader не установлен в этой системе.',
         'about_text': f"""
 Версия: {VERSION} (Pure Python Edition)
 Автор: Terminal Edition
@@ -1052,12 +1062,13 @@ class TerminalYouTubeDownloader:
             print(f"  3. {self._t('check_github')}")
             print(f"  4. {self._t('change_lang')}")
             print(f"  5. {self._t('install_system')}")
-            print(f"  6. {self._t('back_to_menu')}")
+            print(f"  6. [red]{self._t('uninstall_system')}[/red]")
+            print(f"  7. {self._t('back_to_menu')}")
             
             try:
-                choice = IntPrompt.ask(f"\n{self._t('select_option')}", default=6)
+                choice = IntPrompt.ask(f"\n{self._t('select_option')}", default=7)
             except:
-                choice = 6
+                choice = 7
         else:
             print(f"\n{self._t('download_path')}: {self.download_path}")
             print(f"yt-dlp: ✔ Version {self.ytdlp_version}")
@@ -1069,11 +1080,12 @@ class TerminalYouTubeDownloader:
             print(f"  3. {self._t('check_github')}")
             print(f"  4. {self._t('change_lang')}")
             print(f"  5. {self._t('install_system')}")
-            print(f"  6. {self._t('back_to_menu')}")
+            print(f"  6. {self._t('uninstall_system')}")
+            print(f"  7. {self._t('back_to_menu')}")
             try:
-                choice = int(input(f"\n{self._t('select_option')} (1-6) [6]: ") or "6")
+                choice = int(input(f"\n{self._t('select_option')} (1-7) [7]: ") or "7")
             except:
-                choice = 6
+                choice = 7
         
         if choice == 1:
             self.print_color(f"\nCurrent path: {self.download_path}", "cyan")
@@ -1125,6 +1137,8 @@ class TerminalYouTubeDownloader:
         elif choice == 5:
             self.install_to_system()
         elif choice == 6:
+            self.uninstall_from_system()
+        elif choice == 7:
             return
 
     def install_to_system(self):
@@ -1165,6 +1179,64 @@ class TerminalYouTubeDownloader:
         except Exception as e:
             self.print_color(f"\n✖ Error during installation: {e}", "red")
             
+        input(f"\n{self._t('press_enter')}")
+
+    def uninstall_from_system(self):
+        """Uninstall the script from the system"""
+        self.clear_screen()
+        self.show_header()
+        
+        dest_path = "/usr/local/bin/youtube"
+        script_dir = os.path.join(os.path.expanduser("~"), ".ytdl", "bin")
+        
+        # Check if installed
+        if not os.path.lexists(dest_path):
+            self.print_color(f"\n[-] {self._t('uninstall_not_installed')}", "yellow")
+            input(f"\n{self._t('press_enter')}")
+            return
+        
+        # Confirm
+        if RICH_AVAILABLE:
+            confirm = Confirm.ask(f"\n[bold red]{self._t('uninstall_confirm')}[/bold red]", default=False)
+        else:
+            confirm = input(f"\n{self._t('uninstall_confirm')} (y/n) [n]: ").lower() == 'y'
+        
+        if not confirm:
+            return
+        
+        # Remove symlink
+        try:
+            if os.path.lexists(dest_path):
+                try:
+                    os.remove(dest_path)
+                except PermissionError:
+                    subprocess.run(["sudo", "rm", dest_path], check=True)
+            self.print_color("✔ Removed /usr/local/bin/youtube", "green")
+        except Exception as e:
+            self.print_color(f"✖ Could not remove symlink: {e}", "red")
+        
+        # Remove downloaded script
+        if os.path.exists(script_dir):
+            try:
+                shutil.rmtree(script_dir)
+                self.print_color("✔ Removed ~/.ytdl/bin/", "green")
+            except Exception as e:
+                self.print_color(f"✖ Could not remove script directory: {e}", "red")
+        
+        # Ask about config/history
+        if RICH_AVAILABLE:
+            del_data = Confirm.ask(f"\n{self._t('uninstall_data_prompt')}", default=False)
+        else:
+            del_data = input(f"\n{self._t('uninstall_data_prompt')} (y/n) [n]: ").lower() == 'y'
+        
+        if del_data and os.path.exists(self.config_dir):
+            try:
+                shutil.rmtree(self.config_dir)
+                self.print_color("✔ Removed ~/.ytdl/", "green")
+            except Exception as e:
+                self.print_color(f"✖ Could not remove config directory: {e}", "red")
+        
+        self.print_color(f"\n✔ {self._t('uninstall_success')}", "green")
         input(f"\n{self._t('press_enter')}")
 
     def check_for_updates(self):
