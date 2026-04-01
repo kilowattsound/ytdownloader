@@ -1,5 +1,5 @@
 # 📺 YouTube Downloader (Terminal Edition)
-
+ 
 A high-performance, aesthetically pleasing terminal-based YouTube downloader built with **Pure Python**. It leverages `yt-dlp` for extracting media and `rich` for a beautiful, responsive user interface.
 
 ![Terminal Interface](https://img.shields.io/badge/UI-Terminal_Rich-blue?style=flat-square)
