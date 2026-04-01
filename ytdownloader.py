@@ -13,7 +13,6 @@ from datetime import datetime
 import time
 import re
 import threading
-import queue
 import shutil
 import urllib.request
 import ssl
@@ -67,18 +66,15 @@ ensure_dependencies()
 # Now safe to import
 from rich.console import Console
 from rich.progress import (
-    Progress, BarColumn, TextColumn, TimeRemainingColumn, 
-    TransferSpeedColumn, ProgressColumn, SpinnerColumn
+    Progress, BarColumn, TextColumn, SpinnerColumn
 )
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm, IntPrompt
 from rich.table import Table
 from rich import box
-from rich.live import Live
 from rich.text import Text
 from rich.layout import Layout
 from rich.align import Align
-from rich import print as rprint
 import yt_dlp
 try:
     import static_ffmpeg
@@ -355,7 +351,7 @@ class TerminalYouTubeDownloader:
     
     def clear_screen(self):
         """Clear terminal screen"""
-        os.system('clear' if os.name == 'posix' else 'cls')
+        print("\033[2J\033[H", end="", flush=True)
     
     def check_dependencies(self):
         """Check if required tools are installed"""
@@ -390,7 +386,7 @@ class TerminalYouTubeDownloader:
                     config = json.load(f)
                     self.download_path = config.get('download_path', self.download_path)
                     self.language = config.get('language', 'en')
-            except:
+            except Exception:
                 pass
     
     def save_config(self):
@@ -402,7 +398,7 @@ class TerminalYouTubeDownloader:
         try:
             with open(self.config_file, 'w') as f:
                 json.dump(config, f, indent=2)
-        except:
+        except Exception:
             pass
     
     def load_history(self):
@@ -411,7 +407,7 @@ class TerminalYouTubeDownloader:
             try:
                 with open(self.history_file, 'r') as f:
                     return json.load(f)
-            except:
+            except Exception:
                 return []
         return []
     
@@ -430,7 +426,7 @@ class TerminalYouTubeDownloader:
         try:
             with open(self.history_file, 'w') as f:
                 json.dump(history, f, indent=2)
-        except:
+        except Exception:
             pass
     
     def clean_url(self, url, preserve_playlist=False):
@@ -491,7 +487,7 @@ class TerminalYouTubeDownloader:
             if upload_date != 'N/A' and len(upload_date) == 8:
                 try:
                     upload_date = f"{upload_date[:4]}-{upload_date[4:6]}-{upload_date[6:]}"
-                except:
+                except Exception:
                     pass
 
             # Extract available video formats (resolutions)
@@ -608,7 +604,7 @@ class TerminalYouTubeDownloader:
                     progress_data['percent'] = float(p)
                     progress_data['speed'] = d.get('_speed_str', 'N/A')
                     progress_data['eta'] = d.get('_eta_str', 'N/A')
-                except:
+                except Exception:
                     pass
             elif d['status'] == 'finished':
                 progress_data['status'] = 'finished'
@@ -632,9 +628,13 @@ class TerminalYouTubeDownloader:
                         task = progress.add_task(f"[↓] {self._t('downloading')}", total=100, custom_bar="░" * 20)
                         
                         # Run download in a separate thread to keep UI interactive
+                        dl_error = {'error': None}
                         def run_download():
-                            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                                ydl.download([url])
+                            try:
+                                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                                    ydl.download([url])
+                            except Exception as e:
+                                dl_error['error'] = e
 
                         download_thread = threading.Thread(target=run_download)
                         download_thread.start()
@@ -645,7 +645,10 @@ class TerminalYouTubeDownloader:
                             desc = f"[↓] {self._t('downloading')} {progress_data['speed']} • ETA: {progress_data['eta']}"
                             progress.update(task, completed=progress_data['percent'], custom_bar=bar_str, description=desc)
                             time.sleep(0.1)
-                            
+                        
+                        if dl_error['error']:
+                            raise dl_error['error']
+                        
                         # Final update
                         progress.update(task, completed=100, custom_bar='█' * 20, description=f"✔ {self._t('download_complete')}")
                 finally:
@@ -807,12 +810,12 @@ class TerminalYouTubeDownloader:
             if RICH_AVAILABLE:
                 try:
                     choice = IntPrompt.ask("Your choice", default=1)
-                except:
+                except Exception:
                     choice = 1
             else:
                 try:
                     choice = int(input(f"Your choice (1-{len(qualities)}) [1]: ") or "1")
-                except:
+                except Exception:
                     choice = 1
             
             quality = qualities[choice-1][1] if 1 <= choice <= len(qualities) else "best"
@@ -830,12 +833,12 @@ class TerminalYouTubeDownloader:
             if RICH_AVAILABLE:
                 try:
                     fmt_choice = IntPrompt.ask("Your choice", default=1)
-                except:
+                except Exception:
                     fmt_choice = 1
             else:
                 try:
                     fmt_choice = int(input(f"Your choice (1-{len(formats)}) [1]: ") or "1")
-                except:
+                except Exception:
                     fmt_choice = 1
                     
             audio_format = formats[fmt_choice-1][1] if 1 <= fmt_choice <= len(formats) else "mp3"
@@ -965,9 +968,13 @@ class TerminalYouTubeDownloader:
                     ) as progress:
                         task = progress.add_task("[≡] Downloading playlist...", total=video_count)
                         
+                        dl_error = {'error': None}
                         def run_dl():
-                            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                                ydl.download([url])
+                            try:
+                                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                                    ydl.download([url])
+                            except Exception as e:
+                                dl_error['error'] = e
                         
                         dl_thread = threading.Thread(target=run_dl)
                         dl_thread.start()
@@ -976,6 +983,9 @@ class TerminalYouTubeDownloader:
                             desc = f"[≡] Downloading: {state['downloaded_count']+1}/{video_count}"
                             progress.update(task, completed=state['downloaded_count'], description=desc)
                             time.sleep(0.5)
+                        
+                        if dl_error['error']:
+                            raise dl_error['error']
                         
                         progress.update(task, completed=video_count, description="✔ Playlist Download Complete")
                 finally:
@@ -1062,12 +1072,12 @@ class TerminalYouTubeDownloader:
             print(f"  3. {self._t('check_github')}")
             print(f"  4. {self._t('change_lang')}")
             print(f"  5. {self._t('install_system')}")
-            print(f"  6. [red]{self._t('uninstall_system')}[/red]")
+            print(f"  6. {self.colors['red']}{self._t('uninstall_system')}{self.colors['reset']}")
             print(f"  7. {self._t('back_to_menu')}")
             
             try:
                 choice = IntPrompt.ask(f"\n{self._t('select_option')}", default=7)
-            except:
+            except Exception:
                 choice = 7
         else:
             print(f"\n{self._t('download_path')}: {self.download_path}")
@@ -1084,7 +1094,7 @@ class TerminalYouTubeDownloader:
             print(f"  7. {self._t('back_to_menu')}")
             try:
                 choice = int(input(f"\n{self._t('select_option')} (1-7) [7]: ") or "7")
-            except:
+            except Exception:
                 choice = 7
         
         if choice == 1:
@@ -1122,12 +1132,12 @@ class TerminalYouTubeDownloader:
             if RICH_AVAILABLE:
                 try:
                     lang_choice = IntPrompt.ask(self._t('select_option'), default=1)
-                except:
+                except Exception:
                     lang_choice = 1
             else:
                 try:
                     lang_choice = int(input(f"{self._t('select_option')} (1-2) [1]: ") or "1")
-                except:
+                except Exception:
                     lang_choice = 1
             
             self.language = 'en' if lang_choice == 1 else 'ru'
@@ -1411,12 +1421,12 @@ class TerminalYouTubeDownloader:
         if RICH_AVAILABLE:
             try:
                 choice = IntPrompt.ask("Your choice", default=1)
-            except:
+            except Exception:
                 choice = 1
         else:
             try:
                 choice = int(input("Your choice (1-2) [1]: ") or "1")
-            except:
+            except Exception:
                 choice = 1
                 
         audio_only = (choice == 2)
@@ -1443,7 +1453,7 @@ class TerminalYouTubeDownloader:
             if RICH_AVAILABLE:
                 try:
                     choice = Prompt.ask(f"\n[bold cyan]{self._t('select_option')}[/bold cyan]", choices=["1", "2", "3", "4", "5", "6", "7", "8"], default="1")
-                except:
+                except Exception:
                     choice = "1"
             else:
                 choice = input(f"\n{self._t('select_option')} (1-8): ") or "1"

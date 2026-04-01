@@ -82,9 +82,3 @@ This project wouldn't be possible without these amazing open-source libraries:
 ---
 
 *Enjoying the tool? Feel free to star the repo! ⭐*
--   [rich](https://github.com/Textualize/rich) - Professional terminal formatting and UI components.
--   [static-ffmpeg](https://github.com/zackees/static-ffmpeg) - Self-contained media processing.
-
----
-
-*Enjoying the tool? Feel free to star the repo! ⭐*
