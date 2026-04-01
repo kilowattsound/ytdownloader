@@ -98,4 +98,24 @@ fi
 
 echo -e "\n${GREEN}${BOLD}Done!${NC}"
 echo -e "You can now run the downloader from any terminal by typing: ${BOLD}youtube${NC}"
+
+# 5. Check for stale binaries in other PATH locations
+STALE_FOUND=false
+while IFS= read -r yt_path; do
+    if [ "$yt_path" != "$DEST_PATH" ]; then
+        echo -e "${YELLOW}[!] Warning: Found a stale 'youtube' binary at: $yt_path${NC}"
+        echo -e "${YELLOW}    This may override the new installation. Removing...${NC}"
+        if rm "$yt_path" 2>/dev/null || sudo rm "$yt_path" 2>/dev/null; then
+            echo -e "${GREEN}[✔] Removed stale binary: $yt_path${NC}"
+        else
+            echo -e "${RED}[✖] Could not remove $yt_path. Please remove it manually.${NC}"
+        fi
+        STALE_FOUND=true
+    fi
+done < <(which -a youtube 2>/dev/null)
+
+if [ "$STALE_FOUND" = true ]; then
+    echo -e "${GREEN}[✔] Stale binaries cleaned up.${NC}"
+fi
+
 echo -e "\n${BLUE}Happy downloading!${NC}"

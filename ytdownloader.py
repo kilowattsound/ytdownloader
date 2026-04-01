@@ -139,6 +139,17 @@ TRANSLATIONS = {
         'update_app_prompt': 'Would you like to update the application now?',
         'updating_app': 'Updating script... please wait.',
         'app_updated': 'Application updated successfully!',
+        'select_audio_format': 'Select Audio Format',
+        'download_cancelled': 'Download cancelled.',
+        'checking_updates': 'Checking for updates',
+        'up_to_date': 'All libraries are up to date!',
+        'updates_available': 'Updates Available',
+        'install_updates_prompt': 'Install updates now?',
+        'updating_libs': 'Updating libraries...',
+        'updates_installed': 'Libraries updated successfully!',
+        'restarting': 'Restarting application...',
+        'select_language': 'Select Language',
+        'settings_options': 'Options',
         'about_text': f"""
 Version: {VERSION} (Pure Python Edition)
 Author: Terminal Edition
@@ -220,6 +231,17 @@ Powered by: yt_dlp library and ffmpeg
         'update_app_prompt': 'Хотите обновить приложение сейчас?',
         'updating_app': 'Обновление скрипта... пожалуйста, подождите.',
         'app_updated': 'Приложение успешно обновлено!',
+        'select_audio_format': 'Выберите формат аудио',
+        'download_cancelled': 'Загрузка отменена.',
+        'checking_updates': 'Проверка обновлений',
+        'up_to_date': 'Все библиотеки обновлены!',
+        'updates_available': 'Доступны обновления',
+        'install_updates_prompt': 'Установить обновления сейчас?',
+        'updating_libs': 'Обновление библиотек...',
+        'updates_installed': 'Библиотеки успешно обновлены!',
+        'restarting': 'Перезапуск приложения...',
+        'select_language': 'Выберите язык',
+        'settings_options': 'Опции',
         'about_text': f"""
 Версия: {VERSION} (Pure Python Edition)
 Автор: Terminal Edition
@@ -1024,7 +1046,7 @@ class TerminalYouTubeDownloader:
             
             self.console.print(table)
             
-            self.print_color(f"\n{self._t('main_menu')}:", "yellow")
+            self.print_color(f"\n{self._t('settings_options')}:", "yellow")
             print(f"  1. {self._t('change_path')}")
             print(f"  2. {self._t('check_updates')}")
             print(f"  3. {self._t('check_github')}")
@@ -1041,7 +1063,7 @@ class TerminalYouTubeDownloader:
             print(f"yt-dlp: ✔ Version {self.ytdlp_version}")
             print(f"ffmpeg: {'✔ Connected' if self.ffmpeg_available else '✖ Missing'}")
             print(f"Language: {self._t('lang_name')}")
-            print(f"\n{self._t('main_menu')}:")
+            print(f"\n{self._t('settings_options')}:")
             print(f"  1. {self._t('change_path')}")
             print(f"  2. {self._t('check_updates')}")
             print(f"  3. {self._t('check_github')}")
