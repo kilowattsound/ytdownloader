@@ -17,7 +17,7 @@ import shutil
 import urllib.request
 import ssl
 
-VERSION = "2.2.4"
+VERSION = "2.2.5"
 REPO_URL = "kilowattsound/ytdownloader"
 
 def ensure_dependencies():
@@ -995,12 +995,12 @@ class TerminalYouTubeDownloader:
                     with Progress(
                         SpinnerColumn(spinner_name="dots12", style="cyan"),
                         TextColumn("[progress.description]{task.description}"),
-                        BarColumn(bar_width=20, complete_char="█", incomplete_char="░"),
+                        TextColumn("[cyan]{task.fields[custom_bar]}[/cyan]"),
                         TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
                         console=self.console,
                         transient=True
                     ) as progress:
-                        task = progress.add_task("[≡] Downloading playlist...", total=video_count)
+                        task = progress.add_task("[≡] Downloading playlist...", total=video_count, custom_bar="░" * 20)
                         
                         dl_error = {'error': None}
                         def run_dl():
@@ -1014,14 +1014,19 @@ class TerminalYouTubeDownloader:
                         dl_thread.start()
                         
                         while dl_thread.is_alive():
+                            # Calculate bar
+                            completed = state['downloaded_count']
+                            filled = int(20 * completed / video_count) if video_count > 0 else 0
+                            bar_str = '█' * filled + '░' * (20 - filled)
+                            
                             desc = f"[≡] Downloading: {state['downloaded_count']+1}/{video_count}"
-                            progress.update(task, completed=state['downloaded_count'], description=desc)
+                            progress.update(task, completed=state['downloaded_count'], custom_bar=bar_str, description=desc)
                             time.sleep(0.5)
                         
                         if dl_error['error']:
                             raise dl_error['error']
                         
-                        progress.update(task, completed=video_count, description="✔ Playlist Download Complete")
+                        progress.update(task, completed=video_count, custom_bar='█' * 20, description="✔ Playlist Download Complete")
                 finally:
                     sys.stdout.write('\033[?7h')
                     sys.stdout.flush()
