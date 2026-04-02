@@ -911,8 +911,16 @@ class TerminalYouTubeDownloader:
             time.sleep(2)
             return
         
-        # Clean URL
+        # Clean URL and convert to playlist URL if needed
         url = self.clean_url(url, preserve_playlist=True)
+        
+        # Convert watch?v=xxx&list=PLxxx to playlist?list=PLxxx
+        if 'list=' in url and 'watch?' in url:
+            import urllib.parse
+            parsed = urllib.parse.urlparse(url)
+            params = urllib.parse.parse_qs(parsed.query)
+            if 'list' in params:
+                url = f"https://www.youtube.com/playlist?list={params['list'][0]}"
         
         # Get playlist info
         self.print_color("★ Fetching playlist information...", "yellow")
@@ -923,6 +931,7 @@ class TerminalYouTubeDownloader:
                 'no_warnings': True,
                 'extract_flat': True,
                 'nocheckcertificate': True,
+                'noplaylist': False,
             }
             
             playlist_info = None
