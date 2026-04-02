@@ -116,6 +116,11 @@ TRANSLATIONS = {
         'check_updates': 'Check for library updates',
         'check_github': 'Check for app updates (GitHub)',
         'change_lang': 'Change Language',
+        'embed_metadata': 'MP3 Auto-Tagging',
+        'embed_metadata_desc': 'Embed title, artist & thumbnail in audio files',
+        'embed_metadata_toggled': 'MP3 Auto-Tagging {}',
+        'enabled': 'Enabled',
+        'disabled': 'Disabled',
         'install_system': 'Install to System (Global Alias)',
         'install_success': 'Successfully installed! You can now run "youtube" from any terminal.',
         'install_fail': 'Installation failed. You might need sudo permissions.',
@@ -213,6 +218,11 @@ Powered by: yt_dlp library and ffmpeg
         'check_updates': 'Проверить обновления библиотек',
         'check_github': 'Проверить обновления приложения (GitHub)',
         'change_lang': 'Сменить язык',
+        'embed_metadata': 'Авто-теги MP3',
+        'embed_metadata_desc': 'Встраивать название, исполнителя и обложку в аудиофайлы',
+        'embed_metadata_toggled': 'Авто-теги MP3 {}',
+        'enabled': 'Включено',
+        'disabled': 'Отключено',
         'install_system': 'Установить в систему (Глобальный псевдоним)',
         'install_success': 'Успешно установлено! Теперь вы можете запускать "youtube" из любого терминала.',
         'install_fail': 'Ошибка установки. Возможно, потребуются права sudo.',
@@ -307,6 +317,7 @@ class TerminalYouTubeDownloader:
         self.ytdlp_version = "Unknown"
         self.ffmpeg_available = False
         self.language = 'en'
+        self.embed_metadata = True  # MP3 auto-tagging (title, artist, thumbnail)
         
         # Precompile Regex
         self.percent_re = re.compile(r'(\d+\.?\d*)%')
@@ -386,6 +397,7 @@ class TerminalYouTubeDownloader:
                     config = json.load(f)
                     self.download_path = config.get('download_path', self.download_path)
                     self.language = config.get('language', 'en')
+                    self.embed_metadata = config.get('embed_metadata', True)
             except Exception:
                 pass
     
@@ -393,7 +405,8 @@ class TerminalYouTubeDownloader:
         """Save configuration"""
         config = {
             'download_path': self.download_path,
-            'language': self.language
+            'language': self.language,
+            'embed_metadata': self.embed_metadata
         }
         try:
             with open(self.config_file, 'w') as f:
@@ -585,13 +598,19 @@ class TerminalYouTubeDownloader:
         }
 
         if format_type == 'audio':
-            ydl_opts.update({
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': audio_format,
-                    'preferredquality': '192',
-                }],
-            })
+            postprocessors = [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': audio_format,
+                'preferredquality': '192',
+            }]
+            
+            # MP3 auto-tagging: embed metadata and thumbnail
+            if self.embed_metadata:
+                postprocessors.append({'key': 'FFmpegMetadata'})
+                postprocessors.append({'key': 'EmbedThumbnail'})
+                ydl_opts['writethumbnail'] = True
+            
+            ydl_opts['postprocessors'] = postprocessors
 
         # Shared progress state
         progress_data = {'percent': 0, 'speed': '0B/s', 'eta': '00:00', 'status': 'preparing'}
@@ -1069,6 +1088,8 @@ class TerminalYouTubeDownloader:
             table.add_row("yt-dlp", "[green]✔ Connected[/green]" if self.ytdlp_available else "[red]✖ Missing[/red]")
             table.add_row("ffmpeg", "[green]✔ Connected[/green]" if self.ffmpeg_available else "[red]✖ Missing[/red]")
             table.add_row(self._t('change_lang'), self._t('lang_name'))
+            meta_status = f"[green]✔ {self._t('enabled')}[/green]" if self.embed_metadata else f"[red]✖ {self._t('disabled')}[/red]"
+            table.add_row(self._t('embed_metadata'), meta_status)
             
             self.console.print(table)
             
@@ -1077,31 +1098,34 @@ class TerminalYouTubeDownloader:
             print(f"  2. {self._t('check_updates')}")
             print(f"  3. {self._t('check_github')}")
             print(f"  4. {self._t('change_lang')}")
-            print(f"  5. {self._t('install_system')}")
-            print(f"  6. {self.colors['red']}{self._t('uninstall_system')}{self.colors['reset']}")
-            print(f"  7. {self._t('back_to_menu')}")
+            print(f"  5. {self._t('embed_metadata')} ({'✔' if self.embed_metadata else '✖'})")
+            print(f"  6. {self._t('install_system')}")
+            print(f"  7. {self.colors['red']}{self._t('uninstall_system')}{self.colors['reset']}")
+            print(f"  8. {self._t('back_to_menu')}")
             
             try:
-                choice = IntPrompt.ask(f"\n{self._t('select_option')}", default=7)
+                choice = IntPrompt.ask(f"\n{self._t('select_option')}", default=8)
             except Exception:
-                choice = 7
+                choice = 8
         else:
             print(f"\n{self._t('download_path')}: {self.download_path}")
             print(f"yt-dlp: ✔ Version {self.ytdlp_version}")
             print(f"ffmpeg: {'✔ Connected' if self.ffmpeg_available else '✖ Missing'}")
             print(f"Language: {self._t('lang_name')}")
+            print(f"{self._t('embed_metadata')}: {'✔' if self.embed_metadata else '✖'}")
             print(f"\n{self._t('settings_options')}:")
             print(f"  1. {self._t('change_path')}")
             print(f"  2. {self._t('check_updates')}")
             print(f"  3. {self._t('check_github')}")
             print(f"  4. {self._t('change_lang')}")
-            print(f"  5. {self._t('install_system')}")
-            print(f"  6. {self._t('uninstall_system')}")
-            print(f"  7. {self._t('back_to_menu')}")
+            print(f"  5. {self._t('embed_metadata')} ({'✔' if self.embed_metadata else '✖'})")
+            print(f"  6. {self._t('install_system')}")
+            print(f"  7. {self._t('uninstall_system')}")
+            print(f"  8. {self._t('back_to_menu')}")
             try:
-                choice = int(input(f"\n{self._t('select_option')} (1-7) [7]: ") or "7")
+                choice = int(input(f"\n{self._t('select_option')} (1-8) [8]: ") or "8")
             except Exception:
-                choice = 7
+                choice = 8
         
         if choice == 1:
             self.print_color(f"\nCurrent path: {self.download_path}", "cyan")
@@ -1151,10 +1175,16 @@ class TerminalYouTubeDownloader:
             self.print_color(f"✔ {self._t('lang_name')}!", "green")
             time.sleep(1.5)
         elif choice == 5:
-            self.install_to_system()
+            self.embed_metadata = not self.embed_metadata
+            self.save_config()
+            status = self._t('enabled') if self.embed_metadata else self._t('disabled')
+            self.print_color(f"✔ {self._t('embed_metadata_toggled').format(status)}", "green")
+            time.sleep(1.5)
         elif choice == 6:
-            self.uninstall_from_system()
+            self.install_to_system()
         elif choice == 7:
+            self.uninstall_from_system()
+        elif choice == 8:
             return
 
     def install_to_system(self):
