@@ -12,7 +12,7 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 echo -e "${BLUE}${BOLD}--- YouTube Downloader Installer ---${NC}"
-echo -e "${BLUE}Terminal Edition v2.2.2${NC}\n"
+echo -e "${BLUE}Terminal Edition v2.2.4${NC}\n"
 
 # 1. Check for Python 3
 if ! command -v python3 &> /dev/null

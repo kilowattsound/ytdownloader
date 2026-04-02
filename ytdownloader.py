@@ -17,7 +17,7 @@ import shutil
 import urllib.request
 import ssl
 
-VERSION = "2.2.3"
+VERSION = "2.2.4"
 REPO_URL = "kilowattsound/ytdownloader"
 
 def ensure_dependencies():
