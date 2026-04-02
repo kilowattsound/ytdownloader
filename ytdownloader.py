@@ -17,7 +17,7 @@ import shutil
 import urllib.request
 import ssl
 
-VERSION = "2.3.0"
+VERSION = "2.3.1"
 REPO_URL = "kilowattsound/ytdownloader"
 
 def ensure_dependencies():
@@ -385,9 +385,11 @@ class TerminalYouTubeDownloader:
         
         # Check system ffmpeg first
         try:
-            result = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True, timeout=5)
+            ffmpeg_cmd = shutil.which("ffmpeg") or "ffmpeg"
+            result = subprocess.run([ffmpeg_cmd, "-version"], capture_output=True, text=True, timeout=5)
             if result.returncode == 0:
                 self.ffmpeg_available = True
+                self.ffmpeg_path = ffmpeg_cmd
         except Exception:
             pass
             
@@ -607,6 +609,7 @@ class TerminalYouTubeDownloader:
             'nocheckcertificate': True,
             'quiet': True,
             'no_warnings': True,
+            'ffmpeg_location': self.ffmpeg_path if self.ffmpeg_available else None,
         }
 
         if format_type == 'audio':
@@ -619,6 +622,7 @@ class TerminalYouTubeDownloader:
             # MP3 auto-tagging: embed metadata and thumbnail
             if self.embed_metadata:
                 postprocessors.append({'key': 'FFmpegMetadata'})
+                postprocessors.append({'key': 'FFmpegThumbnailsConvertor', 'format': 'jpg'})
                 postprocessors.append({'key': 'EmbedThumbnail'})
                 ydl_opts['writethumbnail'] = True
             
@@ -1072,6 +1076,7 @@ class TerminalYouTubeDownloader:
                 'quiet': True,
                 'no_warnings': True,
                 'noplaylist': False,
+                'ffmpeg_location': self.ffmpeg_path if self.ffmpeg_available else None,
             }
 
             if audio_only:
@@ -1082,6 +1087,7 @@ class TerminalYouTubeDownloader:
                 }]
                 if self.embed_metadata:
                     postprocessors.append({'key': 'FFmpegMetadata'})
+                    postprocessors.append({'key': 'FFmpegThumbnailsConvertor', 'format': 'jpg'})
                     postprocessors.append({'key': 'EmbedThumbnail'})
                     ydl_opts['writethumbnail'] = True
                 ydl_opts['postprocessors'] = postprocessors
