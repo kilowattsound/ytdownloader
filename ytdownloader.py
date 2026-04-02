@@ -17,7 +17,7 @@ import shutil
 import urllib.request
 import ssl
 
-VERSION = "2.3.2"
+VERSION = "2.3.3"
 REPO_URL = "kilowattsound/ytdownloader"
 
 def ensure_dependencies():
@@ -402,9 +402,6 @@ class TerminalYouTubeDownloader:
                 # The library doesn't expose a simple version string, but we know it's there
             except Exception:
                 pass
-        
-        # Check for AtomicParsley (needed for robust M4A thumbnails)
-        self.ap_available = shutil.which("AtomicParsley") is not None or shutil.which("atomicparsley") is not None
     
     def load_config(self):
         """Load saved configuration"""
@@ -612,7 +609,6 @@ class TerminalYouTubeDownloader:
             'nocheckcertificate': True,
             'quiet': True,
             'no_warnings': True,
-            'ffmpeg_location': self.ffmpeg_path if self.ffmpeg_available else None,
         }
 
         if format_type == 'audio':
@@ -625,22 +621,10 @@ class TerminalYouTubeDownloader:
             # MP3 auto-tagging: embed metadata and thumbnail
             if self.embed_metadata:
                 postprocessors.append({'key': 'FFmpegMetadata'})
-                
-                # Check for AtomicParsley before embedding thumbnails in M4A/MP4
-                can_embed_thumb = True
-                if audio_format in ['m4a', 'mp4'] and not getattr(self, 'ap_available', False):
-                    can_embed_thumb = False
-                
-                if can_embed_thumb:
-                    postprocessors.append({'key': 'FFmpegThumbnailsConvertor', 'format': 'jpg'})
-                    postprocessors.append({'key': 'EmbedThumbnail'})
-                    ydl_opts['writethumbnail'] = True
+                postprocessors.append({'key': 'EmbedThumbnail'})
+                ydl_opts['writethumbnail'] = True
             
             ydl_opts['postprocessors'] = postprocessors
-            
-            # Add ID3v2.3 support for MP3 for better compatibility
-            if audio_format == 'mp3':
-                ydl_opts['postprocessor_args'] = {'ffmpeg': ['-id3v2_version', '3']}
 
         # Shared progress state
         progress_data = {'percent': 0, 'speed': '0B/s', 'eta': '00:00', 'status': 'preparing'}
@@ -1090,7 +1074,6 @@ class TerminalYouTubeDownloader:
                 'quiet': True,
                 'no_warnings': True,
                 'noplaylist': False,
-                'ffmpeg_location': self.ffmpeg_path if self.ffmpeg_available else None,
             }
 
             if audio_only:
@@ -1101,21 +1084,9 @@ class TerminalYouTubeDownloader:
                 }]
                 if self.embed_metadata:
                     postprocessors.append({'key': 'FFmpegMetadata'})
-                    
-                    # Check for AtomicParsley before embedding thumbnails in M4A/MP4
-                    can_embed_thumb = True
-                    if audio_format in ['m4a', 'mp4'] and not getattr(self, 'ap_available', False):
-                        can_embed_thumb = False
-                    
-                    if can_embed_thumb:
-                        postprocessors.append({'key': 'FFmpegThumbnailsConvertor', 'format': 'jpg'})
-                        postprocessors.append({'key': 'EmbedThumbnail'})
-                        ydl_opts['writethumbnail'] = True
+                    postprocessors.append({'key': 'EmbedThumbnail'})
+                    ydl_opts['writethumbnail'] = True
                 ydl_opts['postprocessors'] = postprocessors
-
-                # Add ID3v2.3 support for MP3 for better compatibility
-                if audio_format == 'mp3':
-                    ydl_opts['postprocessor_args'] = {'ffmpeg': ['-id3v2_version', '3']}
 
             # Shared state for progress
             state = {'downloaded_count': 0}
