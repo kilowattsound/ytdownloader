@@ -17,7 +17,7 @@ import shutil
 import urllib.request
 import ssl
 
-VERSION = "2.2.5"
+VERSION = "2.3.0"
 REPO_URL = "kilowattsound/ytdownloader"
 
 def ensure_dependencies():
@@ -141,6 +141,12 @@ TRANSLATIONS = {
         'updating_app': 'Updating script... please wait.',
         'app_updated': 'Application updated successfully!',
         'select_audio_format': 'Select Audio Format',
+        'select_audio_quality': 'Select Audio Quality',
+        'audio_quality_high': 'High (320 kbps)',
+        'audio_quality_good': 'Good (256 kbps)',
+        'audio_quality_standard': 'Standard (192 kbps)',
+        'audio_quality_low': 'Low (128 kbps)',
+        'audio_quality_minimum': 'Minimum (64 kbps)',
         'download_cancelled': 'Download cancelled.',
         'checking_updates': 'Checking for updates',
         'up_to_date': 'All libraries are up to date!',
@@ -243,6 +249,12 @@ Powered by: yt_dlp library and ffmpeg
         'updating_app': 'Обновление скрипта... пожалуйста, подождите.',
         'app_updated': 'Приложение успешно обновлено!',
         'select_audio_format': 'Выберите формат аудио',
+        'select_audio_quality': 'Выберите качество звука',
+        'audio_quality_high': 'Высокое (320 кбит/с)',
+        'audio_quality_good': 'Хорошее (256 кбит/с)',
+        'audio_quality_standard': 'Стандартное (192 кбит/с)',
+        'audio_quality_low': 'Низкое (128 кбит/с)',
+        'audio_quality_minimum': 'Минимальное (64 кбит/с)',
         'download_cancelled': 'Загрузка отменена.',
         'checking_updates': 'Проверка обновлений',
         'up_to_date': 'Все библиотеки обновлены!',
@@ -601,7 +613,7 @@ class TerminalYouTubeDownloader:
             postprocessors = [{
                 'key': 'FFmpegExtractAudio',
                 'preferredcodec': audio_format,
-                'preferredquality': '192',
+                'preferredquality': quality if quality != 'best' else '320',
             }]
             
             # MP3 auto-tagging: embed metadata and thumbnail
@@ -867,6 +879,34 @@ class TerminalYouTubeDownloader:
                     fmt_choice = 1
                     
             audio_format = formats[fmt_choice-1][1] if 1 <= fmt_choice <= len(formats) else "mp3"
+
+            # Audio Quality Selection
+            audio_qualities = [
+                (self._t('audio_quality_high'), "320"),
+                (self._t('audio_quality_good'), "256"),
+                (self._t('audio_quality_standard'), "192"),
+                (self._t('audio_quality_low'), "128"),
+                (self._t('audio_quality_minimum'), "64")
+            ]
+            self.print_color(f"\n{self._t('select_audio_quality')}", "cyan")
+            for i, (name, _) in enumerate(audio_qualities, 1):
+                if RICH_AVAILABLE:
+                    self.console.print(f"  {i}. {name}")
+                else:
+                    print(f"  {i}. {name}")
+            
+            if RICH_AVAILABLE:
+                try:
+                    q_choice = IntPrompt.ask("Your choice", default=3)
+                except Exception:
+                    q_choice = 3
+            else:
+                try:
+                    q_choice = int(input(f"Your choice (1-{len(audio_qualities)}) [3]: ") or "3")
+                except Exception:
+                    q_choice = 3
+            
+            quality = audio_qualities[q_choice-1][1] if 1 <= q_choice <= len(audio_qualities) else "192"
         
         # Confirm download
         if RICH_AVAILABLE:
@@ -965,19 +1005,86 @@ class TerminalYouTubeDownloader:
                 time.sleep(1)
                 return
             
+            # Quality Selection
+            audio_only = False
+            audio_format = "mp3"
+            audio_quality = "192"
+            
+            self.print_color("\nDownload Format:", "cyan")
+            print("  1. ▶ Video (Best Quality)")
+            print("  2. [♪] Audio Only")
+            
+            if RICH_AVAILABLE:
+                try: p_choice = IntPrompt.ask("Your choice", default=1)
+                except Exception: p_choice = 1
+            else:
+                try: p_choice = int(input("Your choice (1-2) [1]: ") or "1")
+                except Exception: p_choice = 1
+            
+            if p_choice == 2:
+                audio_only = True
+                # Audio Format
+                formats = [("MP3", "mp3"), ("M4A", "m4a"), ("FLAC", "flac"), ("WAV", "wav")]
+                self.print_color(f"\n{self._t('select_audio_format')}", "cyan")
+                for i, (name, _) in enumerate(formats, 1):
+                    print(f"  {i}. {name}")
+                
+                if RICH_AVAILABLE:
+                    try: fmt_choice = IntPrompt.ask("Your choice", default=1)
+                    except Exception: fmt_choice = 1
+                else:
+                    try: fmt_choice = int(input(f"Your choice (1-{len(formats)}) [1]: ") or "1")
+                    except Exception: fmt_choice = 1
+                
+                audio_format = formats[fmt_choice-1][1] if 1 <= fmt_choice <= len(formats) else "mp3"
+                
+                # Audio Quality
+                audio_qualities = [
+                    (self._t('audio_quality_high'), "320"),
+                    (self._t('audio_quality_good'), "256"),
+                    (self._t('audio_quality_standard'), "192"),
+                    (self._t('audio_quality_low'), "128"),
+                    (self._t('audio_quality_minimum'), "64")
+                ]
+                self.print_color(f"\n{self._t('select_audio_quality')}", "cyan")
+                for i, (name, _) in enumerate(audio_qualities, 1):
+                    if RICH_AVAILABLE: self.console.print(f"  {i}. {name}")
+                    else: print(f"  {i}. {name}")
+                
+                if RICH_AVAILABLE:
+                    try: q_choice = IntPrompt.ask("Your choice", default=3)
+                    except Exception: q_choice = 3
+                else:
+                    try: q_choice = int(input(f"Your choice (1-{len(audio_qualities)}) [3]: ") or "3")
+                    except Exception: q_choice = 3
+                
+                audio_quality = audio_qualities[q_choice-1][1] if 1 <= q_choice <= len(audio_qualities) else "192"
+
             # Download playlist
             self.print_color(f"\n[>] {self._t('saving_to')}: {self.download_path}", "cyan")
             print()
             
             ydl_opts = {
-                'format': 'bestvideo+bestaudio/best',
+                'format': 'bestaudio/best' if audio_only else 'bestvideo+bestaudio/best',
                 'outtmpl': os.path.join(self.download_path, '%(playlist)s/%(playlist_index)s - %(title)s.%(ext)s'),
-                'merge_output_format': 'mp4',
+                'merge_output_format': audio_format if audio_only else 'mp4',
                 'nocheckcertificate': True,
                 'quiet': True,
                 'no_warnings': True,
                 'noplaylist': False,
             }
+
+            if audio_only:
+                postprocessors = [{
+                    'key': 'FFmpegExtractAudio',
+                    'preferredcodec': audio_format,
+                    'preferredquality': audio_quality,
+                }]
+                if self.embed_metadata:
+                    postprocessors.append({'key': 'FFmpegMetadata'})
+                    postprocessors.append({'key': 'EmbedThumbnail'})
+                    ydl_opts['writethumbnail'] = True
+                ydl_opts['postprocessors'] = postprocessors
 
             # Shared state for progress
             state = {'downloaded_count': 0}
@@ -1481,11 +1588,51 @@ class TerminalYouTubeDownloader:
                 
         audio_only = (choice == 2)
         format_type = "audio" if audio_only else "video"
+        quality = "best"
+        audio_format = "mp3"
+
+        if audio_only:
+            # Format selection
+            formats = [("MP3", "mp3"), ("M4A", "m4a"), ("FLAC", "flac"), ("WAV", "wav")]
+            self.print_color(f"\n{self._t('select_audio_format')}", "cyan")
+            for i, (name, _) in enumerate(formats, 1):
+                print(f"  {i}. {name}")
+                
+            if RICH_AVAILABLE:
+                try: fmt_choice = IntPrompt.ask("Your choice", default=1)
+                except Exception: fmt_choice = 1
+            else:
+                try: fmt_choice = int(input(f"Your choice (1-{len(formats)}) [1]: ") or "1")
+                except Exception: fmt_choice = 1
+            
+            audio_format = formats[fmt_choice-1][1] if 1 <= fmt_choice <= len(formats) else "mp3"
+
+            # Quality selection
+            audio_qualities = [
+                (self._t('audio_quality_high'), "320"),
+                (self._t('audio_quality_good'), "256"),
+                (self._t('audio_quality_standard'), "192"),
+                (self._t('audio_quality_low'), "128"),
+                (self._t('audio_quality_minimum'), "64")
+            ]
+            self.print_color(f"\n{self._t('select_audio_quality')}", "cyan")
+            for i, (name, _) in enumerate(audio_qualities, 1):
+                if RICH_AVAILABLE: self.console.print(f"  {i}. {name}")
+                else: print(f"  {i}. {name}")
+            
+            if RICH_AVAILABLE:
+                try: q_choice = IntPrompt.ask("Your choice", default=3)
+                except Exception: q_choice = 3
+            else:
+                try: q_choice = int(input(f"Your choice (1-{len(audio_qualities)}) [3]: ") or "3")
+                except Exception: q_choice = 3
+            
+            quality = audio_qualities[q_choice-1][1] if 1 <= q_choice <= len(audio_qualities) else "192"
         
         for i, url in enumerate(urls, 1):
             self.print_color(f"\n=============================================", "cyan")
             self.print_color(f"[{i}/{len(urls)}] Processing: {url}", "blue", bold=True)
-            self.download_with_progress(url, format_type, "best", audio_format="mp3")
+            self.download_with_progress(url, format_type, quality, audio_format=audio_format)
             
         self.print_color("\n✔ Bulk download operations completed!", "green")
         if RICH_AVAILABLE:
