@@ -21,7 +21,7 @@ cleanup() {
 trap cleanup EXIT
 
 echo -e "${BLUE}${BOLD}--- YouTube Downloader Installer ---${NC}"
-echo -e "${BLUE}Terminal Edition v2.3.0${NC}\n"
+echo -e "${BLUE}Terminal Edition v2.3.1${NC}\n"
 
 # 1. Check for Python >= 3.9
 if ! command -v python3 >/dev/null 2>&1; then

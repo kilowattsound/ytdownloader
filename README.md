@@ -76,6 +76,7 @@ python3 ytdownloader.py
 -   **Downloads**: Saved to `~/Movies/YouTube` on macOS or `~/Videos/YouTube` on Linux/Windows by default (customizable in Settings).
 -   **Config/History**: Stored in `~/.ytdl/` for persistence across sessions.
 -   **Auto-Update Check**: Enabled by default on startup; toggle under **Settings → Auto-Check Updates on Startup** or bypass once with `--no-update-check`.
+-   **YouTube Sign-In Cookies**: If YouTube asks to sign in (`"Sign in to confirm you're not a bot"`), configure cookies under **Settings → YouTube Cookies (Auth)** (using your signed-in browser or a `cookies.txt` file), or pass `--cookies-from-browser chrome` / `--cookies /path/to/cookies.txt`.
 
 ---
 

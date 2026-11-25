@@ -24,7 +24,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-VERSION = "2.3.0"
+VERSION = "2.3.1"
 REPO_URL = "kilowattsound/ytdownloader"
 STARTUP_UPDATE_TIMEOUT = 4
 
@@ -39,6 +39,16 @@ ALLOWED_YOUTUBE_HOSTS = frozenset({
 EMBED_THUMBNAIL_FORMATS = frozenset({"mp3", "m4a", "flac"})
 ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 MANAGED_PACKAGES = ("yt-dlp", "rich", "static-ffmpeg", "mutagen")
+SUPPORTED_COOKIE_BROWSERS = (
+    "chrome",
+    "safari",
+    "firefox",
+    "brave",
+    "edge",
+    "chromium",
+    "opera",
+    "vivaldi",
+)
 
 # Lazy-loaded third-party references (populated in _load_third_party_modules)
 Console = None
@@ -454,6 +464,47 @@ def normalize_user_path(raw):
     return os.path.expanduser(text)
 
 
+class _SilentYdlLogger:
+    """Suppress yt-dlp direct stdout/stderr prints so Rich UI stays clean."""
+
+    def debug(self, msg):
+        pass
+
+    def info(self, msg):
+        pass
+
+    def warning(self, msg):
+        pass
+
+    def error(self, msg):
+        pass
+
+
+def is_youtube_auth_error(exc):
+    """Return True if an exception indicates YouTube requested sign-in/cookies."""
+    msg = str(exc).lower()
+    return any(
+        needle in msg
+        for needle in (
+            "sign in to confirm",
+            "cookies-from-browser",
+            "use --cookies",
+            "confirm you're not a bot",
+            "confirm you\u2019re not a bot",
+        )
+    )
+
+
+def apply_cookie_opts(opts, cookie_browser=None, cookie_file=None):
+    """Attach silent logger and optional browser/file cookie settings to yt-dlp opts."""
+    opts.setdefault("logger", _SilentYdlLogger())
+    if cookie_browser and isinstance(cookie_browser, str) and cookie_browser.strip():
+        opts["cookiesfrombrowser"] = (cookie_browser.strip().lower(),)
+    elif cookie_file and isinstance(cookie_file, str) and os.path.isfile(cookie_file):
+        opts["cookiefile"] = cookie_file
+    return opts
+
+
 def build_ydl_opts(
     download_path,
     format_type,
@@ -463,6 +514,8 @@ def build_ydl_opts(
     ffmpeg_available=True,
     mutagen_available=True,
     is_playlist=False,
+    cookie_browser=None,
+    cookie_file=None,
 ):
     """Build yt-dlp options dictionary cleanly without insecure TLS flags."""
     if is_playlist:
@@ -506,7 +559,7 @@ def build_ydl_opts(
         else:
             opts["format"] = "best" if quality == "best" else f"best[height<={quality}]/best"
 
-    return opts
+    return apply_cookie_opts(opts, cookie_browser=cookie_browser, cookie_file=cookie_file)
 
 
 TRANSLATIONS = {
@@ -564,6 +617,16 @@ TRANSLATIONS = {
         "auto_check_updates": "Auto-Check Updates on Startup",
         "auto_check_updates_toggled": "Startup Update Check: {}",
         "checking_startup_updates": "Checking for app & library updates...",
+        "youtube_cookies": "YouTube Cookies (Auth)",
+        "cookie_browser_label": "Browser: {}",
+        "cookie_file_label": "File: {}",
+        "cookie_menu_title": "Configure YouTube Authentication Cookies",
+        "cookie_menu_note": "Sign into YouTube in your browser first, then select that browser (or a Netscape cookies.txt file).",
+        "cookie_opt_none": "Disabled (No cookies)",
+        "cookie_opt_file": "Custom cookies.txt file",
+        "cookie_file_prompt": "Enter path to cookies.txt",
+        "cookie_saved": "YouTube cookies setting saved!",
+        "youtube_auth_hint": "YouTube requires sign-in for this video. Go to Settings -> YouTube Cookies (Auth) to use your signed-in browser or cookies.txt.",
         "change_lang": "Change Language",
         "embed_metadata": "Audio Auto-Tagging",
         "embed_metadata_desc": "Embed title, artist & thumbnail in supported audio files",
@@ -725,6 +788,16 @@ Powered by: yt-dlp, rich, static-ffmpeg, and mutagen
         "auto_check_updates": "Автопроверка обновлений при запуске",
         "auto_check_updates_toggled": "Автопроверка обновлений при запуске: {}",
         "checking_startup_updates": "Проверка обновлений приложения и библиотек...",
+        "youtube_cookies": "Cookies YouTube (Авторизация)",
+        "cookie_browser_label": "Браузер: {}",
+        "cookie_file_label": "Файл: {}",
+        "cookie_menu_title": "Настройка cookies для авторизации YouTube",
+        "cookie_menu_note": "Сначала войдите в YouTube в браузере, затем выберите этот браузер (или файл cookies.txt в формате Netscape).",
+        "cookie_opt_none": "Отключено (без cookies)",
+        "cookie_opt_file": "Указать файл cookies.txt",
+        "cookie_file_prompt": "Введите путь к файлу cookies.txt",
+        "cookie_saved": "Настройка cookies YouTube сохранена!",
+        "youtube_auth_hint": "YouTube требует вход в аккаунт для этого видео. Перейдите в Настройки -> Cookies YouTube (Авторизация), чтобы выбрать браузер или cookies.txt.",
         "change_lang": "Сменить язык",
         "embed_metadata": "Авто-теги аудио",
         "embed_metadata_desc": "Встраивать название, исполнителя и обложку в поддерживаемые аудиофайлы",
@@ -845,6 +918,8 @@ class TerminalYouTubeDownloader:
         download_path=None,
         check_deps=True,
         auto_check_updates=None,
+        cookie_browser=None,
+        cookie_file=None,
     ):
         self.download_path = download_path or get_default_download_path()
         os.makedirs(self.download_path, exist_ok=True)
@@ -869,11 +944,20 @@ class TerminalYouTubeDownloader:
         self.language = "en"
         self.embed_metadata = True
         self.auto_check_updates = True
+        self.cookie_browser = None
+        self.cookie_file = None
+        self._last_info_auth_error = False
 
         self.console = console if console is not None else Console()
         self.load_config()
         if auto_check_updates is not None:
             self.auto_check_updates = bool(auto_check_updates)
+        if cookie_browser is not None:
+            self.cookie_browser = cookie_browser
+            self.cookie_file = None
+        elif cookie_file is not None:
+            self.cookie_file = cookie_file
+            self.cookie_browser = None
         if check_deps:
             self.check_dependencies()
 
@@ -923,6 +1007,8 @@ class TerminalYouTubeDownloader:
             self.language = lang if lang in TRANSLATIONS else "en"
             self.embed_metadata = bool(config.get("embed_metadata", True))
             self.auto_check_updates = bool(config.get("auto_check_updates", True))
+            self.cookie_browser = config.get("cookie_browser") or None
+            self.cookie_file = config.get("cookie_file") or None
         except (OSError, json.JSONDecodeError, TypeError) as exc:
             self.print_color(f"⚠ Failed to load config: {exc}", "yellow")
 
@@ -933,6 +1019,8 @@ class TerminalYouTubeDownloader:
             "language": self.language,
             "embed_metadata": self.embed_metadata,
             "auto_check_updates": self.auto_check_updates,
+            "cookie_browser": self.cookie_browser,
+            "cookie_file": self.cookie_file,
         }
         try:
             atomic_write_text(self.config_file, json.dumps(config, indent=2, ensure_ascii=False))
@@ -975,13 +1063,18 @@ class TerminalYouTubeDownloader:
 
     def get_video_info(self, url):
         """Fetch video metadata and available resolutions via yt-dlp."""
+        self._last_info_auth_error = False
         try:
             cleaned = clean_url(url)
-            ydl_opts = {
-                "quiet": True,
-                "no_warnings": True,
-                "color": {"stdout": "never", "stderr": "never"},
-            }
+            ydl_opts = apply_cookie_opts(
+                {
+                    "quiet": True,
+                    "no_warnings": True,
+                    "color": {"stdout": "never", "stderr": "never"},
+                },
+                cookie_browser=self.cookie_browser,
+                cookie_file=self.cookie_file,
+            )
             with self.console.status(f"[bold yellow]{_safe_escape(self._t('fetching_info'))}[/bold yellow]", spinner="dots"):
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info_dict = ydl.extract_info(cleaned, download=False)
@@ -1008,7 +1101,11 @@ class TerminalYouTubeDownloader:
                 "available_qualities": extract_available_qualities(info_dict.get("formats")),
             }
         except Exception as exc:
-            self.print_color(f"⚠ {self._t('fetching_info')} Error: {exc}", "yellow")
+            if is_youtube_auth_error(exc):
+                self._last_info_auth_error = True
+                self.print_color(f"✖ {self._t('youtube_auth_hint')}", "red")
+            else:
+                self.print_color(f"⚠ {self._t('fetching_info')} Error: {exc}", "yellow")
             return None
 
     def show_video_info(self, info):
@@ -1048,6 +1145,8 @@ class TerminalYouTubeDownloader:
             ffmpeg_available=self.ffmpeg_available,
             mutagen_available=MUTAGEN_AVAILABLE,
             is_playlist=False,
+            cookie_browser=self.cookie_browser,
+            cookie_file=self.cookie_file,
         )
 
         progress_data = {
@@ -1134,6 +1233,8 @@ class TerminalYouTubeDownloader:
             return 0
         except Exception as exc:
             self.print_color(f"✖ Error: {exc}", "red")
+            if is_youtube_auth_error(exc):
+                self.print_color(f"ℹ {self._t('youtube_auth_hint')}", "yellow")
             return 1
 
     def show_header(self):
@@ -1204,6 +1305,9 @@ class TerminalYouTubeDownloader:
         info = self.get_video_info(url)
         if info:
             self.show_video_info(info)
+        elif self._last_info_auth_error:
+            self._pause()
+            return
         else:
             self.print_color(f"⚠ {self._t('fetch_fallback_warn')}", "yellow")
 
@@ -1315,13 +1419,17 @@ class TerminalYouTubeDownloader:
                 url = f"https://www.youtube.com/playlist?list={params['list'][0]}"
 
         try:
-            ydl_opts_info = {
-                "quiet": True,
-                "no_warnings": True,
-                "extract_flat": True,
-                "noplaylist": False,
-                "color": {"stdout": "never", "stderr": "never"},
-            }
+            ydl_opts_info = apply_cookie_opts(
+                {
+                    "quiet": True,
+                    "no_warnings": True,
+                    "extract_flat": True,
+                    "noplaylist": False,
+                    "color": {"stdout": "never", "stderr": "never"},
+                },
+                cookie_browser=self.cookie_browser,
+                cookie_file=self.cookie_file,
+            )
 
             with self.console.status(f"[bold yellow]{_safe_escape(self._t('fetching_info'))}[/bold yellow]", spinner="dots"):
                 with yt_dlp.YoutubeDL(ydl_opts_info) as ydl:
@@ -1362,6 +1470,8 @@ class TerminalYouTubeDownloader:
                 quality="best",
                 ffmpeg_available=self.ffmpeg_available,
                 is_playlist=True,
+                cookie_browser=self.cookie_browser,
+                cookie_file=self.cookie_file,
             )
 
             completed_ids = set()
@@ -1452,6 +1562,8 @@ class TerminalYouTubeDownloader:
             self.save_to_history(url, "video", f"playlist ({video_count})", playlist_title)
         except Exception as exc:
             self.print_color(f"\n✖ {self._t('download_failed')} {exc}", "red")
+            if is_youtube_auth_error(exc):
+                self.print_color(f"ℹ {self._t('youtube_auth_hint')}", "yellow")
 
         self._pause()
 
@@ -1497,6 +1609,55 @@ class TerminalYouTubeDownloader:
 
         self._pause()
 
+    def _format_cookie_status(self):
+        """Return a localized summary of the active cookie source."""
+        if self.cookie_browser:
+            return self._t("cookie_browser_label").format(self.cookie_browser)
+        if self.cookie_file:
+            return self._t("cookie_file_label").format(self.cookie_file)
+        return self._t("disabled")
+
+    def configure_cookies(self):
+        """Configure YouTube authentication cookies via browser or Netscape file."""
+        self.clear_screen()
+        self.show_header()
+
+        self.print_color(self._t("cookie_menu_title"), "cyan", bold=True)
+        self.print_color(self._t("cookie_menu_note"), "yellow")
+        self.console.print()
+
+        browsers = [("chrome", "Chrome"), ("safari", "Safari"), ("firefox", "Firefox"), ("brave", "Brave"), ("edge", "Edge")]
+        self.console.print(f"  1. {_safe_escape(self._t('cookie_opt_none'))}")
+        for idx, (_, label) in enumerate(browsers, 2):
+            self.console.print(f"  {idx}. {label}")
+        self.console.print(f"  7. {_safe_escape(self._t('cookie_opt_file'))}")
+
+        choice = Prompt.ask(
+            f"\n{_safe_escape(self._t('select_option'))}",
+            choices=["1", "2", "3", "4", "5", "6", "7"],
+            default="1",
+        )
+
+        if choice == "1":
+            self.cookie_browser = None
+            self.cookie_file = None
+        elif choice in ("2", "3", "4", "5", "6"):
+            self.cookie_browser = browsers[int(choice) - 2][0]
+            self.cookie_file = None
+        elif choice == "7":
+            raw_path = Prompt.ask(f"\n{_safe_escape(self._t('cookie_file_prompt'))}")
+            cookie_path = normalize_user_path(raw_path)
+            if not cookie_path or not os.path.isfile(cookie_path):
+                self.print_color(f"✖ {self._t('file_not_found')}", "red")
+                time.sleep(1.5)
+                return
+            self.cookie_file = cookie_path
+            self.cookie_browser = None
+
+        self.save_config()
+        self.print_color(f"✔ {self._t('cookie_saved')}", "green")
+        time.sleep(1.2)
+
     def show_settings(self):
         """Display and interactively edit application settings in a loop."""
         while True:
@@ -1533,6 +1694,7 @@ class TerminalYouTubeDownloader:
                 else f"[red]✖ {_safe_escape(self._t('disabled'))}[/red]"
             )
             table.add_row(self._t("auto_check_updates"), auto_upd_status)
+            table.add_row(self._t("youtube_cookies"), _safe_escape(self._format_cookie_status()))
 
             self.console.print(table)
 
@@ -1543,14 +1705,15 @@ class TerminalYouTubeDownloader:
             self.console.print(f"  4. {_safe_escape(self._t('change_lang'))}")
             self.console.print(f"  5. {_safe_escape(self._t('embed_metadata'))} ({'✔' if self.embed_metadata else '✖'})")
             self.console.print(f"  6. {_safe_escape(self._t('auto_check_updates'))} ({'✔' if self.auto_check_updates else '✖'})")
-            self.console.print(f"  7. {_safe_escape(self._t('install_system'))}")
-            self.console.print(f"  8. [red]{_safe_escape(self._t('uninstall_system'))}[/red]")
-            self.console.print(f"  9. {_safe_escape(self._t('back_to_menu'))}")
+            self.console.print(f"  7. {_safe_escape(self._t('youtube_cookies'))}")
+            self.console.print(f"  8. {_safe_escape(self._t('install_system'))}")
+            self.console.print(f"  9. [red]{_safe_escape(self._t('uninstall_system'))}[/red]")
+            self.console.print(f" 10. {_safe_escape(self._t('back_to_menu'))}")
 
             choice = Prompt.ask(
                 f"\n{_safe_escape(self._t('select_option'))}",
-                choices=["1", "2", "3", "4", "5", "6", "7", "8", "9"],
-                default="9",
+                choices=["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"],
+                default="10",
             )
 
             if choice == "1":
@@ -1598,10 +1761,12 @@ class TerminalYouTubeDownloader:
                 self.print_color(f"✔ {self._t('auto_check_updates_toggled').format(status)}", "green")
                 time.sleep(1.2)
             elif choice == "7":
-                self.install_to_system()
+                self.configure_cookies()
             elif choice == "8":
-                self.uninstall_from_system()
+                self.install_to_system()
             elif choice == "9":
+                self.uninstall_from_system()
+            elif choice == "10":
                 return
 
     def install_to_system(self, dest_path="/usr/local/bin/youtube", script_path=None):
@@ -1988,6 +2153,17 @@ def parse_cli_args(argv=None):
         action="store_true",
         help="Skip automatic app and library update checks on startup",
     )
+    parser.add_argument(
+        "--cookies-from-browser",
+        choices=SUPPORTED_COOKIE_BROWSERS,
+        default=None,
+        help="Load YouTube authentication cookies from a local browser",
+    )
+    parser.add_argument(
+        "--cookies",
+        default=None,
+        help="Path to a Netscape-format cookies.txt file for YouTube authentication",
+    )
     return parser.parse_args(argv)
 
 
@@ -2001,8 +2177,11 @@ def main(argv=None):
     try:
         ensure_dependencies()
         _load_third_party_modules()
+        cookie_file = normalize_user_path(args.cookies) if args.cookies else None
         app = TerminalYouTubeDownloader(
             auto_check_updates=False if args.no_update_check else None,
+            cookie_browser=args.cookies_from_browser,
+            cookie_file=cookie_file,
         )
         app.run()
         return 0

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ytdownloader"
-version = "2.3.0"
+version = "2.3.1"
 description = "A terminal-based YouTube downloader powered by yt-dlp and Rich"
 readme = "README.md"
 license = { file = "LICENSE" }
