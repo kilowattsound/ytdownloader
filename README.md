@@ -1,35 +1,49 @@
 # 📺 YouTube Downloader (Terminal Edition)
- 
-A high-performance, aesthetically pleasing terminal-based YouTube downloader built with **Pure Python**. It leverages `yt-dlp` for extracting media and `rich` for a beautiful, responsive user interface.
+
+A terminal-based YouTube downloader built with **Pure Python**. It leverages `yt-dlp` for extracting media and `rich` for a clean, responsive terminal interface.
 
 ![Terminal Interface](https://img.shields.io/badge/UI-Terminal_Rich-blue?style=flat-square)
-![Pure Python](https://img.shields.io/badge/Python-3.8+-yellow?style=flat-square)
+![Pure Python](https://img.shields.io/badge/Python-3.9+-yellow?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
 
 ---
 
 ## ✨ Key Features
 
-*   **⚡ Dynamic Quality selection**: Automatically fetches real available resolutions (4K, 2K, 1080p, etc.) with **actual bitrates** displayed in the menu.
-*   **🌍 Multilingual Support**: Fully localized in **English** and **Russian**.
-*   **📦 Pure Python & Self-Managed**: Automatically checks for and installs required libraries (`yt-dlp`, `rich`, `static-ffmpeg`).
-*   **💻 System Integration**: One-click installation to your system path. Run `youtube` from any terminal window.
-*   **🎧 Pro Audio Mode**: Extract audio in multiple formats (MP3, M4A, FLAC, WAV).
+*   **⚡ Dynamic Quality Selection**: Fetches available resolutions (4K, 2K, 1080p, etc.) with **actual bitrates** displayed in the menu.
+*   **🌍 Multilingual Support**: Localized in **English** and **Russian**.
+*   **📦 Self-Managed or Pip-Installable**: Automatically checks for required libraries (`yt-dlp`, `rich`, `static-ffmpeg`, `mutagen`) or installs cleanly via `pip` / `pipx`.
+*   **🔄 Automatic Startup Updates**: Checks both the app (GitHub) and Python modules (PyPI) at startup (can be toggled in Settings or skipped with `--no-update-check`).
+*   **💻 System Integration**: Install globally as the `youtube` command from any terminal window.
+*   **🎧 Pro Audio Mode**: Extract audio in **MP3, M4A, FLAC, or WAV** with automatic metadata and thumbnail tagging.
 *   **📂 Playlist & Bulk Support**: Download entire playlists or batches of URLs from a `.txt` file.
-*   **📜 History Tracking**: Keep track of your past downloads with a built-in history viewer.
+*   **📜 History Tracking**: View and manage your recent downloads.
 
 ---
 
 ## 🚀 Quick Start & Installation
 
-### One-line Installation (Recommended)
-Run this command in your terminal to automatically install the script to your system:
+### Option 1: Package Install (`pip` / `pipx` — Recommended)
+
 ```bash
-curl -sSL https://raw.githubusercontent.com/kilowattsound/ytdownloader/main/install.sh | bash
+git clone https://github.com/kilowattsound/ytdownloader.git
+cd ytdownloader
+pip install .
+# Or isolated with pipx:
+pipx install .
 ```
 
-### Manual Installation (GitHub Clone)
-To install the downloader onto your system globally, simply clone the repository and run the installer:
+### Option 2: Installer Script (macOS / Linux)
+
+> **Security Tip:** Inspect `install.sh` before piping it directly to `bash`.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kilowattsound/ytdownloader/main/install.sh -o install.sh
+less install.sh
+bash install.sh
+```
+
+Or run from a local clone:
 
 ```bash
 git clone https://github.com/kilowattsound/ytdownloader.git
@@ -38,47 +52,37 @@ chmod +x install.sh
 ./install.sh
 ```
 
-Once installed, you can launch the application from anywhere using:
+Once installed, launch from anywhere:
+
 ```bash
 youtube
+youtube --version
+youtube --no-update-check
 ```
 
----
+### Option 3: Run Directly Without Global Install
 
-## 🛠 Manual Installation
-
-If you prefer to run it without installing globally:
-
-1.  Clone the repository:
-    ```bash
-    git clone https://github.com/kilowattsound/ytdownloader.git
-    cd ytdownloader
-    ```
-2.  Install dependencies:
-    ```bash
-    pip install yt-dlp rich static-ffmpeg
-    ```
-3.  Run the script:
-    ```bash
-    python3 ytdownloader.py
-    ```
+```bash
+git clone https://github.com/kilowattsound/ytdownloader.git
+cd ytdownloader
+pip install yt-dlp rich static-ffmpeg mutagen
+python3 ytdownloader.py
+```
 
 ---
 
 ## ⚙️ Configuration & Paths
 
--   **Downloads**: Saved to `~/Movies/YouTube` by default (customizable in Settings).
+-   **Downloads**: Saved to `~/Movies/YouTube` on macOS or `~/Videos/YouTube` on Linux/Windows by default (customizable in Settings).
 -   **Config/History**: Stored in `~/.ytdl/` for persistence across sessions.
+-   **Auto-Update Check**: Enabled by default on startup; toggle under **Settings → Auto-Check Updates on Startup** or bypass once with `--no-update-check`.
 
 ---
 
 ## 🙌 Credits
 
-This project wouldn't be possible without these amazing open-source libraries:
--   [yt-dlp](https://github.com/yt-dlp/yt-dlp) - The powerful video extraction engine.
--   [rich](https://github.com/Textualize/rich) - Professional terminal formatting and UI components.
--   [static-ffmpeg](https://github.com/zackees/static-ffmpeg) - Self-contained media processing.
-
----
-
-*Enjoying the tool? Feel free to star the repo! ⭐*
+This project builds on these open-source libraries:
+-   [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Media extraction engine.
+-   [rich](https://github.com/Textualize/rich) - Terminal formatting and UI components.
+-   [static-ffmpeg](https://github.com/zackees/static-ffmpeg) - Self-contained `ffmpeg` fallback.
+-   [mutagen](https://github.com/quodlibet/mutagen) - Audio metadata and thumbnail embedding.

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ytdownloader"
+version = "2.3.0"
+description = "A terminal-based YouTube downloader powered by yt-dlp and Rich"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.9"
+dependencies = [
+    "yt-dlp",
+    "rich",
+    "static-ffmpeg",
+    "mutagen",
+]
+
+[project.scripts]
+youtube = "ytdownloader:main"
+
+[tool.setuptools]
+py-modules = ["ytdownloader"]

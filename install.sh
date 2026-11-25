@@ -1,9 +1,10 @@
 #!/bin/bash
 
-# YouTube Downloader - System Installer
-# Created for Terminal Edition
+set -euo pipefail
 
-# Colors for pretty output
+# YouTube Downloader - System Installer
+# Terminal Edition
+
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
@@ -11,107 +12,105 @@ RED='\033[0;31m'
 BOLD='\033[1m'
 NC='\033[0m'
 
-echo -e "${BLUE}${BOLD}--- YouTube Downloader Installer ---${NC}"
-echo -e "${BLUE}Terminal Edition v2.2.4${NC}\n"
+TMP_FILE=""
+cleanup() {
+    if [ -n "$TMP_FILE" ] && [ -f "$TMP_FILE" ]; then
+        rm -f "$TMP_FILE"
+    fi
+}
+trap cleanup EXIT
 
-# 1. Check for Python 3
-if ! command -v python3 &> /dev/null
-then
-    echo -e "${RED}[✖] Python 3 was not found. Please install Python 3 first.${NC}"
+echo -e "${BLUE}${BOLD}--- YouTube Downloader Installer ---${NC}"
+echo -e "${BLUE}Terminal Edition v2.3.0${NC}\n"
+
+# 1. Check for Python >= 3.9
+if ! command -v python3 >/dev/null 2>&1; then
+    echo -e "${RED}[✖] Python 3 was not found. Please install Python 3.9+ first.${NC}"
     exit 1
 fi
-echo -e "${GREEN}[✔] Python 3 detected${NC}"
 
-# 2. Identify script location
+if ! python3 -c 'import sys; raise SystemExit(0 if sys.version_info >= (3, 9) else 1)'; then
+    echo -e "${RED}[✖] Python 3.9 or higher is required.${NC}"
+    exit 1
+fi
+echo -e "${GREEN}[✔] Python 3.9+ detected${NC}"
+
+# 2. Install script into ~/.ytdl/bin/ytdownloader.py
 SCRIPT_NAME="ytdownloader.py"
 INSTALL_DIR="$HOME/.ytdl/bin"
+SCRIPT_PATH="$INSTALL_DIR/$SCRIPT_NAME"
 REPO_URL="https://raw.githubusercontent.com/kilowattsound/ytdownloader/main"
 
-# Check for curl (needed for standalone mode)
-if ! command -v curl &> /dev/null
-then
-    echo -e "${YELLOW}[!] Note: 'curl' is not installed. Standalone installation may fail.${NC}"
-fi
+mkdir -p "$INSTALL_DIR"
 
-# Check if running from a local clone or standalone
 if [ -f "./$SCRIPT_NAME" ]; then
-    # Local installation from current directory
-    SCRIPT_PATH="$(pwd)/$SCRIPT_NAME"
-    echo -e "${GREEN}[✔] Local source script found: $SCRIPT_NAME${NC}"
+    cp "./$SCRIPT_NAME" "$SCRIPT_PATH"
+    echo -e "${GREEN}[✔] Installed local $SCRIPT_NAME to $SCRIPT_PATH${NC}"
 else
-    # Remote/Standalone installation
-    if ! command -v curl &> /dev/null; then
-        echo -e "${RED}[✖] Error: 'curl' is required for standalone mode. Please install it first.${NC}"
+    if ! command -v curl >/dev/null 2>&1; then
+        echo -e "${RED}[✖] Error: 'curl' is required for standalone installation.${NC}"
         exit 1
     fi
-    echo -e "${YELLOW}[!] Standalone mode: Downloading source files...${NC}"
-    mkdir -p "$INSTALL_DIR"
-    if curl -sSL "$REPO_URL/$SCRIPT_NAME" -o "$INSTALL_DIR/$SCRIPT_NAME"; then
-        SCRIPT_PATH="$INSTALL_DIR/$SCRIPT_NAME"
-        echo -e "${GREEN}[✔] Successfully downloaded $SCRIPT_NAME${NC}"
-    else
+    echo -e "${YELLOW}[!] Standalone mode: Downloading $SCRIPT_NAME...${NC}"
+    TMP_FILE="$(mktemp)"
+    if ! curl -fsSL "$REPO_URL/$SCRIPT_NAME" -o "$TMP_FILE"; then
         echo -e "${RED}[✖] Error downloading $SCRIPT_NAME from GitHub.${NC}"
-        echo -e "${YELLOW}[!] Please check your internet connection or the repository URL.${NC}"
         exit 1
     fi
+
+    FIRST_LINE="$(head -n 1 "$TMP_FILE" || true)"
+    if [ "$FIRST_LINE" != "#!/usr/bin/env python3" ]; then
+        echo -e "${RED}[✖] Downloaded file failed validation (unexpected header).${NC}"
+        exit 1
+    fi
+
+    mv "$TMP_FILE" "$SCRIPT_PATH"
+    TMP_FILE=""
+    echo -e "${GREEN}[✔] Successfully downloaded and verified $SCRIPT_NAME${NC}"
 fi
 
 # 3. Make script executable
 echo -e "${YELLOW}[!] Setting executable permissions...${NC}"
 chmod +x "$SCRIPT_PATH"
 
-# 4. Create symlink in /usr/local/bin
-DEST_PATH="/usr/local/bin/youtube"
+# 4. Ensure /usr/local/bin exists and create symlink
+DEST_DIR="/usr/local/bin"
+DEST_PATH="$DEST_DIR/youtube"
 echo -e "${YELLOW}[!] Creating global command: '$DEST_PATH'${NC}"
 
-# Check if symlink already exists
-if [ -L "$DEST_PATH" ] || [ -f "$DEST_PATH" ]; then
-    echo -e "${YELLOW}[!] Note: $DEST_PATH already exists. Updating...${NC}"
-    if [ "$EUID" -ne 0 ]; then
-        if ! rm "$DEST_PATH" 2>/dev/null; then
-            echo -e "${BLUE}[#] Requesting administrator permission to remove old link...${NC}"
-            sudo rm "$DEST_PATH"
-        fi
+if [ ! -d "$DEST_DIR" ]; then
+    if [ "${EUID:-$(id -u)}" -ne 0 ]; then
+        mkdir -p "$DEST_DIR" 2>/dev/null || sudo mkdir -p "$DEST_DIR"
     else
-        rm "$DEST_PATH"
+        mkdir -p "$DEST_DIR"
     fi
 fi
 
-# Create symlink
-if [ "$EUID" -ne 0 ]; then
-    if ! ln -s "$SCRIPT_PATH" "$DEST_PATH" 2>/dev/null; then
-        echo -e "${BLUE}[#] Requesting administrator permission to install to system...${NC}"
+if [ "${EUID:-$(id -u)}" -ne 0 ]; then
+    if ln -sf "$SCRIPT_PATH" "$DEST_PATH" 2>/dev/null; then
+        echo -e "${GREEN}[✔] Successfully installed globally!${NC}"
+    else
+        echo -e "${BLUE}[#] Requesting administrator permission to install to $DEST_DIR...${NC}"
         if sudo ln -sf "$SCRIPT_PATH" "$DEST_PATH"; then
             echo -e "${GREEN}[✔] Successfully installed globally using sudo!${NC}"
         else
             echo -e "${RED}[✖] Error during installation. Please check permissions.${NC}"
             exit 1
         fi
-    else
-        echo -e "${GREEN}[✔] Successfully installed globally!${NC}"
     fi
 else
     ln -sf "$SCRIPT_PATH" "$DEST_PATH"
     echo -e "${GREEN}[✔] Successfully installed globally!${NC}"
 fi
 
-# 5. Check for stale binaries in other PATH locations
-STALE_FOUND=false
-for yt_path in $(which -a youtube 2>/dev/null); do
-    if [ "$yt_path" != "$DEST_PATH" ]; then
-        echo -e "${YELLOW}[!] Warning: Found a stale 'youtube' binary at: $yt_path${NC}"
-        echo -e "${YELLOW}    This may override the new installation. Removing...${NC}"
-        if rm "$yt_path" 2>/dev/null || sudo rm "$yt_path" 2>/dev/null; then
-            echo -e "${GREEN}[✔] Removed stale binary: $yt_path${NC}"
-        else
-            echo -e "${RED}[✖] Could not remove $yt_path. Please remove it manually.${NC}"
+# 5. Warn if another 'youtube' binary shadows /usr/local/bin/youtube in PATH
+if command -v type >/dev/null 2>&1; then
+    while IFS= read -r yt_path; do
+        if [ -n "$yt_path" ] && [ "$yt_path" != "$DEST_PATH" ]; then
+            echo -e "${YELLOW}[!] Warning: Another 'youtube' command exists in PATH at: $yt_path${NC}"
+            echo -e "${YELLOW}    If it takes precedence, remove or rename it manually.${NC}"
         fi
-        STALE_FOUND=true
-    fi
-done
-
-if [ "$STALE_FOUND" = true ]; then
-    echo -e "${GREEN}[✔] Stale binaries cleaned up.${NC}"
+    done < <(type -aP youtube 2>/dev/null || true)
 fi
 
 echo -e "\n${GREEN}${BOLD}Done!${NC}"
